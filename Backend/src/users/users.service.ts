@@ -192,7 +192,7 @@ export class UsersService {
       if (!userDetails) {
         throw new NotFoundException('User Not Found');
       }
-      
+
       const updatedDetails = await this.prismaService.user.update({
         data: {
           name: name || userDetails.name,
@@ -216,6 +216,55 @@ export class UsersService {
       };
     } catch (error) {
       new InternalServerErrorException();
+      throw error;
+    }
+  }
+
+  //   Get All Users (Customers :-
+  async getAllCustomers() {
+    try {
+      const allCustomers = await this.prismaService.user.findMany({
+        where: {
+          role: 'CUSTOMER',
+        },
+      });
+
+      if (!allCustomers) {
+        throw new InternalServerErrorException();
+      }
+
+      return {
+        message: 'List of all Customers',
+        allCustomers,
+      };
+    } catch (error) {
+      new InternalServerErrorException();
+      throw error;
+    }
+  }
+
+  // Get an individual user By Id :-
+  async getAllIndividualUser(userId: string) {
+    try {
+      if (!userId) {
+        throw new BadRequestException('User Id is not provided');
+      }
+
+      const userDetails = await this.prismaService.user.findUnique({
+        where: {
+          id: userId,
+        },
+      });
+
+      if (!userDetails) {
+        throw new NotFoundException('User with provided Id not found');
+      }
+
+      return {
+        message: 'User Details',
+        userDetails,
+      };
+    } catch (error) {
       throw error;
     }
   }

@@ -6,34 +6,55 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
-import { Observable } from 'rxjs';
 
 @Injectable()
 export class AuthenticationGuard implements CanActivate {
-  constructor(private jwtService: JwtService) {}
+  constructor(private readonly jwtService: JwtService) {}
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<Request>();
     try {
-      //  get the token :-
-      const request = context.switchToHttp().getRequest();
+      // Extract the JWT token
       const token = this.extractJWTToken(request);
 
       if (!token) {
-        throw new UnauthorizedException();
+        throw new UnauthorizedException('Authorization token is missing');
       }
 
-      const decodedPayLoad = this.jwtService.verify(token);
+      // Verify and decode the token
+      const decodedPayload = this.jwtService.verify(token);
 
-      console.log(decodedPayLoad);
-
-      request['user'] = decodedPayLoad;
+      // Attach user info to the request
+      request.user = decodedPayload;
 
       return true;
     } catch (error) {
-      throw new UnauthorizedException();
+      // Specific JWT errors mapped to 401 Unauthorized
+      if (error.name === 'JsonWebTokenError') {
+        throw new UnauthorizedException('Invalid token');
+      } else if (error.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Token has expired');
+      }
+
+      // Fallback for unknown errors
+      // throw new UnauthorizedException('Authentication failed');
+      throw error;
     }
   }
 
-  private extractJWTToken(req: Request) {
-    return req.headers['authorization']?.split(' ')[1];
+  private extractJWTToken(req: Request): string | undefined {
+    const authHeader = req.headers['authorization'] || null;
+
+    if (!authHeader) {
+      throw new UnauthorizedException('Authorization header is missing');
+    }
+
+    // Extract the token after "Bearer"
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      throw new UnauthorizedException('Token must be provided');
+    }
+
+    return token;
   }
 }
